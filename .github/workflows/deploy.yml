@@ -1,4 +1,4 @@
-name: Build and Push Docker Image
+name: Automated Docker Deployment
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
       - main
 
 jobs:
-  docker:
+  deploy:
     runs-on: ubuntu-latest
 
     steps:
@@ -20,9 +20,19 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN123 }}
 
       - name: Build Docker image
-        run: |
-          docker build -t ayeshairam/tasbih-counter:latest .
+        run: docker build -t ayeshairam/tasbih-counter:latest .
 
       - name: Push Docker image
-        run: |
-          docker push ayeshairam/tasbih-counter:latest
+        run: docker push ayeshairam/tasbih-counter:latest
+
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            docker pull ayeshairam/tasbih-counter:latest
+            docker stop tasbih-counter || true
+            docker rm tasbih-counter || true
+            docker run -d --name tasbih-counter -p 8080:80 ayeshairam/tasbih-counter:latest
